@@ -1,0 +1,30 @@
+<div style="text-align: center; margin-top: 50px;">
+  <h2>Sign Up</h2>
+  <form (ngSubmit)="onSignUp()">
+    <div>
+      <label>Email:</label>
+      <input type="email" [(ngModel)]="signUpEmail" name="email" required>
+    </div>
+    <div>
+      <label>Password:</label>
+      <input type="password" [(ngModel)]="signUpPassword" name="password" required>
+    </div>
+    <button type="submit">Sign Up</button>
+    <div *ngIf="accountCreated" style="color: green;">Account created!</div>
+  </form>
+
+  <h2 style="margin-top: 50px;">Sign In</h2>
+  <form (ngSubmit)="onSignIn()">
+    <div>
+      <label>Email:</label>
+      <input type="email" [(ngModel)]="signInEmail" name="email" required>
+    </div>
+    <div>
+      <label>Password:</label>
+      <input type="password" [(ngModel)]="signInPassword" name="password" required>
+    </div>
+    <button type="submit">Sign In</button>
+    <div *ngIf="signInSuccess" style="color: green;">You are connected!</div>
+    <div *ngIf="signInError" style="color: red;">Email or password incorrect.</div>
+  </form>
+</div>
