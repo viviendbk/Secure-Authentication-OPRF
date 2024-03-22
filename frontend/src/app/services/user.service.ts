@@ -59,7 +59,7 @@ export class UserService {
     const { privateKey, publicKey } = this.generateRSAKeyPair();
 
     // Make a request to the server to get R
-    this.http.get(this.apiUrl + "/getR?C=" + C.toString() + "&publicKey=" + publicKey.toString())
+    this.http.get(this.apiUrl + "/getR/" + C.toString() + "/" + publicKey.toString())
       .subscribe(
         (response: any) => {
           const R = BigInt(response.data.R);
