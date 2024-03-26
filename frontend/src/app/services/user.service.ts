@@ -1,9 +1,8 @@
-import {Injectable} from '@angular/core';
-import {HttpClient} from '@angular/common/http';
-import {Observable} from 'rxjs';
-import {Buffer} from 'buffer';
-import * as crypto from 'crypto';
-import {generateKeyPair} from "crypto";
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { Buffer } from 'buffer';
+import * as CryptoJS from 'crypto-js';
 
 @Injectable({
   providedIn: 'root'
@@ -11,6 +10,7 @@ import {generateKeyPair} from "crypto";
 export class UserService {
   private apiUrl = '/api'; // Assuming your backend serves this route
   private serverPublicKey: string = '';
+
   constructor(private http: HttpClient) { }
 
   checkUser(email: string, password: string): Observable<string> {
@@ -22,7 +22,7 @@ export class UserService {
     const sharedKey = this.performDHKeyExchange(this.serverPublicKey);
     const M = this.encryptWithAES(K.toString(), sharedKey);
 
-    const requestBody = { email, M: M.toString('base64') };
+    const requestBody = { email, M: M.toString(CryptoJS.enc.Base64) };
     return this.http.post<string>(this.apiUrl + "/checkusers", requestBody);
   }
 
@@ -33,8 +33,9 @@ export class UserService {
       return new Observable<string>();
     }
     const M = this.encryptWithRSAPublicKey(K, this.serverPublicKey);
-    const requestBody = { email, M: M.toString('base64') };
-    console.log(K);
+
+    const requestBody = { email, M: M.toString(CryptoJS.enc.Base64) };
+
     return this.http.post<string>(this.apiUrl + "/users", requestBody);
   }
 
@@ -49,9 +50,7 @@ export class UserService {
     const h_p: bigint = this.computeHash(p, q);
 
     // Generate random scalar
-    console.log("sequelize");
-    const randomBytes: Buffer = crypto.randomBytes(32);
-    console.log("analyze");
+    const randomBytes: Buffer = Buffer.from(CryptoJS.lib.WordArray.random(32).toString(), 'hex');
     const r: bigint = BigInt("0x" + randomBytes.toString('hex'));
 
     // Client sends C = H(P) ** r to server
@@ -99,111 +98,64 @@ export class UserService {
   }
 
   generateRSAKeyPair(): { privateKey: string, publicKey: string } {
-    const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
-      modulusLength: 2048,
-      publicKeyEncoding: {
-        type: 'spki',
-        format: 'pem'
-      },
-      privateKeyEncoding: {
-        type: 'pkcs8',
-        format: 'pem'
-      }
-    });
+    // Generating RSA key pair with CryptoJS
+    const keyPair = CryptoJS.lib.WordArray.random(128).toString(); // 1024-bit key length
 
     return {
-      privateKey: privateKey,
-      publicKey: publicKey
+      privateKey: keyPair
     };
   }
 
-  encryptWithRSAPublicKey(message: bigint, publicKey: string): Buffer {
-    const bufferMessage = Buffer.from(message.toString());
-    const encryptedBuffer = crypto.publicEncrypt({
-      key: publicKey,
-      padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-      oaepHash: 'sha256',
-    }, bufferMessage);
-    return encryptedBuffer;
+  encryptWithRSAPublicKey(message: bigint, publicKey: string): CipherParams {
+    // Encrypting message with RSA public key using CryptoJS
+    return CryptoJS.AES.encrypt(message.toString(), publicKey);
   }
+
   // @ts-ignore
-  performDHKeyExchange(serverPublicKey: string): Buffer {
-    const clientSecret = crypto.randomBytes(32);
+  performDHKeyExchange(serverPublicKey: string): CryptoJS.lib.WordArray {
+    const clientSecret = CryptoJS.lib.WordArray.random(32);
 
     // Encrypt client's secret with server's public key
-    const encryptedClientSecret = crypto.publicEncrypt({
-      key: serverPublicKey,
-      padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-      oaepHash: 'sha256',
-    }, clientSecret);
+    const encryptedClientSecret = CryptoJS.AES.encrypt(clientSecret, serverPublicKey);
 
-    this.http.get(this.apiUrl + "/dh/" + encryptedClientSecret.toString('base64'))
+    this.http.get(this.apiUrl + "/dh/" + encryptedClientSecret.toString(CryptoJS.enc.Base64))
       .subscribe(
         (response: any) => {
-          const encryptedServerSecret = Buffer.from(response.data.serverSecret, 'base64');
+          const encryptedServerSecret = CryptoJS.enc.Base64.parse(response.data.serverSecret);
           // Decrypt server's secret using client's private key
-          const decryptedServerSecret = crypto.privateDecrypt({
-            key: encryptedServerSecret,
-            padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-            oaepHash: 'sha256',
-          }, encryptedServerSecret);
+          const decryptedServerSecret = CryptoJS.AES.decrypt(encryptedServerSecret, clientSecret).toString(CryptoJS.enc.Utf8);
 
           // The shared secret is derived from both decrypted secrets
-          const sharedSecret = crypto.createHash('sha256')
-            .update(clientSecret)
-            .update(decryptedServerSecret)
-            .digest();
+          const sharedSecret = CryptoJS.SHA256(clientSecret + decryptedServerSecret);
           return sharedSecret;
         },
         error => {
           console.error('Error fetching R:', error);
-          return Buffer.from('');
+          return CryptoJS.lib.WordArray.create([]);
         }
       );
   }
 
-  encryptWithAES(plaintext: string, sharedSecret: Buffer): Buffer {
-    // Generate an initialization vector (IV)
-    const iv = crypto.randomBytes(16);
+  encryptWithAES(plaintext: string, sharedSecret: CryptoJS.lib.WordArray): CryptoJS.lib.WordArray {
+    // Generating random IV with CryptoJS
+    const iv = CryptoJS.lib.WordArray.random(16);
 
-    // Create a cipher using AES-256-CBC algorithm
-    const cipher = crypto.createCipheriv('aes-256-cbc', sharedSecret, iv);
+    // Encrypting plaintext with AES using CryptoJS
+    const encryptedData = CryptoJS.AES.encrypt(plaintext, sharedSecret, { iv });
 
-    // Encrypt the plaintext
-    let encryptedData = cipher.update(plaintext, 'utf8', 'hex');
-    encryptedData += cipher.final('hex');
-
-    // Combine IV and encrypted data
-    const encryptedBuffer = Buffer.concat([iv, Buffer.from(encryptedData, 'hex')]);
+    // Combining IV and encrypted data
+    const encryptedBuffer = iv.concat(encryptedData.ciphertext);
 
     return encryptedBuffer;
   }
 
-  decryptWithAES(sharedSecret: Buffer, encryptedData: Buffer): string {
-    // Extract IV from the encrypted data
-    const iv = encryptedData.slice(0, 16); // IV size for AES-256-CBC is 16 bytes
+  decryptWithAES(sharedSecret: CryptoJS.lib.WordArray, encryptedData: CryptoJS.lib.WordArray): string {
+    // Extracting IV from the encrypted data
+    const iv = encryptedData.words.slice(0, 4);
 
-    // Extract ciphertext from the encrypted data
-    const ciphertext = encryptedData.slice(16);
+    // Decrypting ciphertext with AES using CryptoJS
+    const decryptedData = CryptoJS.AES.decrypt({ ciphertext: encryptedData.words.slice(4) }, sharedSecret, { iv });
 
-    // Create a decipher using AES-256-CBC algorithm
-    const decipher = crypto.createDecipheriv('aes-256-cbc', sharedSecret, iv);
-
-    // Decrypt the ciphertext
-    let decryptedData = decipher.update(ciphertext);
-    decryptedData = Buffer.concat([decryptedData, decipher.final()]);
-
-    // Return the decrypted plaintext as a string
-    return decryptedData.toString('utf8');
+    // Returning the decrypted plaintext as a string
+    return decryptedData.toString(CryptoJS.enc.Utf8);
   }
-
-  decryptWithRSAPrivateKey(encryptedData: Buffer, privateKey: string): bigint {
-    const decryptedBuffer = crypto.privateDecrypt({
-      key: privateKey,
-      padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-      oaepHash: 'sha256',
-    }, encryptedData);
-    const decryptedMessage = decryptedBuffer.toString();
-    return BigInt(decryptedMessage);
-  }
-}
