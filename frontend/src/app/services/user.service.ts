@@ -136,7 +136,7 @@ export class UserService {
       oaepHash: 'sha256',
     }, clientSecret);
 
-    this.http.get(this.apiUrl + "/dh?clientSecret=" + encryptedClientSecret.toString('base64'))
+    this.http.get(this.apiUrl + "/dh/" + encryptedClientSecret.toString('base64'))
       .subscribe(
         (response: any) => {
           const encryptedServerSecret = Buffer.from(response.data.serverSecret, 'base64');
