@@ -42,6 +42,30 @@ app.get('/getR/:C/:pubKey', (req, res) => {
 });
 
 
+app.get("/dh/:encryptedClientSecret", (req, res) => {
+    const encryptedClientSecret = req.params.encryptedClientSecret;
+
+    const clientSecret = crypto.privateDecrypt(
+        {
+        key: privateKey,
+        passphrase: 'top secret',
+        },
+        Buffer.from(encryptedClientSecret, 'base64')
+    );
+
+    const sharedSecret = crypto.createDiffieHellman(clientSecret).generateKeys();
+
+    const encryptedSharedSecret = crypto.publicEncrypt(
+        {
+        key: clientPublicKey,
+        passphrase: 'top secret',
+        },
+        sharedSecret
+    );
+
+    res.json({ sharedSecret: encryptedSharedSecret });
+});
+
 app.listen(3000, () => {
   console.log('Server is running on http://localhost:3000');
 });
