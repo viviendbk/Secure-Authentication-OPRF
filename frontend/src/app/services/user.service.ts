@@ -33,9 +33,8 @@ export class UserService {
       return new Observable<string>();
     }
     const M = this.encryptWithRSAPublicKey(K, this.serverPublicKey);
-
     const requestBody = { email, M: M.toString('base64') };
-
+    console.log(K);
     return this.http.post<string>(this.apiUrl + "/users", requestBody);
   }
 
@@ -50,7 +49,9 @@ export class UserService {
     const h_p: bigint = this.computeHash(p, q);
 
     // Generate random scalar
+    console.log("sequelize");
     const randomBytes: Buffer = crypto.randomBytes(32);
+    console.log("analyze");
     const r: bigint = BigInt("0x" + randomBytes.toString('hex'));
 
     // Client sends C = H(P) ** r to server
