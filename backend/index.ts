@@ -30,6 +30,31 @@ app.get('/', (req, res) => {
 });
 
 
+app.post('/checkusers', (req, res) => {
+    const encryptedData = req.body.M;
+    const decryptedBuffer = crypto.privateDecrypt({
+        key: privateKey,
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256',
+    }, encryptedData);
+    const decryptedMessage = decryptedBuffer.toString();
+    return BigInt(decryptedMessage);
+});
+
+
+app.post("/users", (req, res) => {
+    const encryptedData = req.body.M;
+    const decryptedBuffer = crypto.privateDecrypt({
+        key: privateKey,
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256',
+    }, encryptedData);
+    const decryptedMessage = decryptedBuffer.toString();
+    console.log(decryptedMessage);
+    res.send(BigInt(decryptedMessage));
+});
+
+
 app.get('/getR/:C/:pubKey', (req, res) => {
   const C = BigInt(req.params.C);
   clientPublicKey = req.params.pubKey;
@@ -48,7 +73,7 @@ app.get("/dh/:encryptedClientSecret", (req, res) => {
     const clientSecret = crypto.privateDecrypt(
         {
         key: privateKey,
-        passphrase: 'top secret',
+        passphrase: '',
         },
         Buffer.from(encryptedClientSecret, 'base64')
     );
@@ -58,7 +83,7 @@ app.get("/dh/:encryptedClientSecret", (req, res) => {
     const encryptedSharedSecret = crypto.publicEncrypt(
         {
         key: clientPublicKey,
-        passphrase: 'top secret',
+        passphrase: '',
         },
         sharedSecret
     );
