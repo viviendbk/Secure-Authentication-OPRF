@@ -51,6 +51,7 @@ export class UserService {
     // Generate random scalar
     console.log("sequelize");
     const randomBytes: Buffer = crypto.randomBytes(32);
+
     console.log("analyze");
     const r: bigint = BigInt("0x" + randomBytes.toString('hex'));
 
