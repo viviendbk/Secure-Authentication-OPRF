@@ -7,28 +7,27 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
 
-
 server_public_key = None
 
 
 def generate_rsa_key_pair(public_exponent=65537, key_size=2048):
   private_key = rsa.generate_private_key(
-      public_exponent=public_exponent,
-      key_size=key_size,
+    public_exponent=public_exponent,
+    key_size=key_size,
   )
 
   public_key = private_key.public_key()
 
   # PEM encode the private and public keys
   pem_encoded_private_key = private_key.private_bytes(
-      encoding=serialization.Encoding.PEM,
-      format=serialization.PrivateFormat.PKCS8,
-      encryption_algorithm=serialization.NoEncryption()
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PrivateFormat.PKCS8,
+    encryption_algorithm=serialization.NoEncryption()
   )
 
   pem_encoded_public_key = public_key.public_bytes(
-      encoding=serialization.Encoding.PEM,
-      format=serialization.PublicFormat.SubjectPublicKeyInfo
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo
   )
 
   return pem_encoded_private_key, pem_encoded_public_key
@@ -52,7 +51,7 @@ def get_K(client_password, q):
 
   private_key, public_key = generate_rsa_key_pair()
 
-  response = requests.get(f"localhost:5000/getR/{C}/{public_key}")
+  response = requests.get(f"localhost:5000/getR/{C}")
   if response.status_code == 200:
     data = response.json()
     R = int(data["R"])
@@ -64,23 +63,24 @@ def get_K(client_password, q):
     print("Error fetching R:", response.text)
     return 0
 
+
 def encrypt_with_rsa_public_key(message, public_key):
-    # Load the public key
-    rsa_public_key = serialization.load_pem_public_key(
-      public_key,
-    )
+  # Load the public key
+  rsa_public_key = serialization.load_pem_public_key(
+    public_key,
+  )
 
-    # Encrypt the message
-    ciphertext = rsa_public_key.encrypt(
-      message,
-      padding.OAEP(
-        mgf=padding.MGF1(algorithm=hashes.SHA256()),
-        algorithm=hashes.SHA256(),
-        label=None
-      )
+  # Encrypt the message
+  ciphertext = rsa_public_key.encrypt(
+    message,
+    padding.OAEP(
+      mgf=padding.MGF1(algorithm=hashes.SHA256()),
+      algorithm=hashes.SHA256(),
+      label=None
     )
+  )
 
-    return ciphertext
+  return ciphertext
 
 
 def decrypt_with_rsa_private_key(ciphertext, private_key):
@@ -101,6 +101,7 @@ def decrypt_with_rsa_private_key(ciphertext, private_key):
   )
 
   return plaintext
+
 
 def login():
   email = input("Enter your email: ")
