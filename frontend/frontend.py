@@ -1,9 +1,8 @@
-import base64
-
-from flask import Flask, request
 import os
+import random
+import sys
+
 import requests
-from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -46,14 +45,19 @@ def get_K(client_password, q):
     # Convert password to integer in range [2, q]
     h_p = compute_h(client_password, q)
 
+    print("h_p:", h_p)
     # Generate random scalar
-    r = int.from_bytes(os.urandom(32), byteorder='big')
+    r = random.randint(1, 100)
+    print("r:", r)
 
+    sys.set_int_max_str_digits(100000000)
     # Client sends C = H(P) ** r to server
-    C = pow(h_p, r, q)
+    C = pow(h_p, r)
+
 
     client_private_key, client_public_key = generate_key_pair()
 
+    print("C:", C)
     requestBody = {
         "C": C
     }
@@ -63,9 +67,12 @@ def get_K(client_password, q):
         R = int(data["R"])
         global server_public_key
         server_public_key = data["server_public_key"]
+        print("R:", R)
+        z = pow(r, -1, 2 ** 2048)
+        print("z:", z)
+        print("R^z:", pow(R, z, 2 ** 2048))  # Use pow() with modulus
 
-        z = pow(r, q - 2, q)  # Efficient modular inverse
-        return R ** z
+        return pow(R, z, 2 ** 2048)
     else:
         print("Error fetching R:", response.text)
         return 0
@@ -73,11 +80,14 @@ def get_K(client_password, q):
 
 def encrypt_with_rsa_public_key(message, public_key):
     public_key = public_key.encode()
+    public_key = b'-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxb5W3DniI+u7hd/upAlQ\nHL3r4R8yRzX/X38Un3a0l1J6EpehTJ8nt2poiSa5edpqRY92nG2YVXG01hB/ACTb\n+GzMzo9gVtYQhXoSNAqCAtbGd97kI26r3eegjpFKUSiHIln5/qlRXUdcMdvykC/O\neySWRe2aaf1qe0BD7MXLvl2kPADs60OJcBl80iD3vMHmZkabA9mEPqmPDaSA+Zx1\nwymhkB2+FB/jurIpNOriDHPwSWbSOHp0zDvrJ90ohZuI59WwvciyOMpFEICKQL5/\n8NBC7sTJnpq2zgPTYVb2IGqSKdxxW8lMtsTj6cnw6sWkVAJun4b2ckpxlFjxRJOn\nuwIDAQAB\n-----END PUBLIC KEY-----\n'
     # Load the public key
     rsa_public_key = serialization.load_pem_public_key(
         public_key,
     )
 
+    print(message)
+    print("aadazdazdazdaz")
     # Encrypt the message
     ciphertext = rsa_public_key.encrypt(
         message,
@@ -87,28 +97,9 @@ def encrypt_with_rsa_public_key(message, public_key):
             label=None
         )
     )
+    print("2")
 
     return ciphertext
-
-
-def decrypt_with_rsa_private_key(ciphertext, private_key):
-    # Load the private key
-    rsa_private_key = serialization.load_pem_private_key(
-        private_key,
-        password=None
-    )
-
-    # Decrypt the ciphertext
-    plaintext = rsa_private_key.decrypt(
-        ciphertext,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
-        )
-    )
-
-    return plaintext
 
 
 def login():
@@ -126,7 +117,8 @@ def create_user():
     client_password = input("Enter your password: ")
     q = 2 ** 2048
     K = get_K(client_password, q)
-    M = encrypt_with_rsa_public_key(K, server_public_key)
+    print("K:", K)
+    M = encrypt_with_rsa_public_key(bytes(K), server_public_key)
 
     requestBody = {
         "email": email,
