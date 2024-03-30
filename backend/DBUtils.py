@@ -5,6 +5,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 import psycopg2
 import os
 from dotenv import load_dotenv
+import base64
 
 load_dotenv()
 
@@ -31,9 +32,7 @@ def generate_rsa_key_pair(public_exponent=65537, key_size=2048):
     return pem_encoded_private_key, pem_encoded_public_key
 
 
-
-def create_user(email, password):
-    salt = os.urandom(16)
+def create_user(email, password, salt):
     conn = psycopg2.connect(os.getenv('DB_CONNECTION'))
     cursor = conn.cursor()
     cursor.execute('''
@@ -97,3 +96,12 @@ def get_all_users():
     cursor.close()
     conn.close()
     return users
+
+
+def pem_to_int(pem_key):
+    pem_key = pem_key.decode('utf-8').split('\n')[1:-1]
+    pem_key = ''.join(pem_key)
+    der_key = base64.b64decode(pem_key)
+    key_as_int = int.from_bytes(der_key, 'big')
+    return key_as_int
+
