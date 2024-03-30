@@ -1,3 +1,5 @@
+import base64
+
 from flask import Flask, request
 import os
 import requests
@@ -7,31 +9,46 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
 
-
 server_public_key = None
+client_public_key = None
+client_private_key = None
 
-
-def generate_rsa_key_pair(public_exponent=65537, key_size=2048):
+def generate_key_pair():
+  # Generate key pair
   private_key = rsa.generate_private_key(
-      public_exponent=public_exponent,
-      key_size=key_size,
+    public_exponent=65537,
+    key_size=2048
   )
-
   public_key = private_key.public_key()
 
-  # PEM encode the private and public keys
-  pem_encoded_private_key = private_key.private_bytes(
-      encoding=serialization.Encoding.PEM,
-      format=serialization.PrivateFormat.PKCS8,
-      encryption_algorithm=serialization.NoEncryption()
+  # Serialize keys to PEM format
+  private_pem = private_key.private_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PrivateFormat.TraditionalOpenSSL,
+    encryption_algorithm=serialization.NoEncryption()
+  )
+  public_pem = public_key.public_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo
   )
 
-  pem_encoded_public_key = public_key.public_bytes(
-      encoding=serialization.Encoding.PEM,
-      format=serialization.PublicFormat.SubjectPublicKeyInfo
-  )
+  return private_pem, public_pem
 
-  return pem_encoded_private_key, pem_encoded_public_key
+def pem_to_int(pem_key):
+    # Remove header and footer
+    pem_key = pem_key.decode('utf-8').split('\n')[1:-1]
+    pem_key = ''.join(pem_key)
+    # Decode base64
+    der_key = base64.b64decode(pem_key)
+    # Convert bytes to int
+    key_as_int = int.from_bytes(der_key, 'big')
+
+    return key_as_int
+
+def diffie_hellman_bob(bob_private_key, alice_public_key, prime_modulus, generator):
+  # Calculate the shared secret key using Bob's private key and Alice's public key
+  shared_secret = pow(alice_public_key, bob_private_key, prime_modulus)
+  return shared_secret
 
 
 def compute_h(p, q):
@@ -50,13 +67,18 @@ def get_K(client_password, q):
   # Client sends C = H(P) ** r to server
   C = pow(h_p, r, q)
 
-  private_key, public_key = generate_rsa_key_pair()
+  client_private_key, client_public_key = generate_key_pair()
 
-  response = requests.get(f"localhost:5000/getR/{C}/{public_key}")
+  requestBody = {
+    "C": C,
+    "client_public_key": client_public_key
+  }
+  response = requests.post(f"localhost:5000/getR", json=requestBody)
   if response.status_code == 200:
     data = response.json()
     R = int(data["R"])
-    server_public_key = data["public_key"]
+    global server_public_key
+    server_public_key = data["server_public_key"]
 
     z = pow(r, q - 2, q)  # Efficient modular inverse
     return R ** z
@@ -107,6 +129,8 @@ def login():
   client_password = input("Enter your password: ")
   q = 2 ** 2048
   K = get_K(client_password, q)
+  shared_key = diffie_hellman_bob(client_private_key, K, q, 2)
+
   print("Logging in with email:", email)
 
 
