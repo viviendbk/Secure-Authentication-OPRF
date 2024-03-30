@@ -5,7 +5,7 @@ import dotenv
 
 app = Flask(__name__)
 create_users_table()
-salt = os.urandom(16)
+salt = b""
 dotenv.load_dotenv()
 private_key, public_key = generate_rsa_key_pair()
 client_public_key = ""
@@ -13,9 +13,12 @@ client_public_key = ""
 
 @app.route('/users', methods=['POST'])
 def create_user_route():
+    global salt
+    salt = os.urandom(16)
     email = request.json['email']
     m = request.json['M']
     create_user(email, m, salt)
+    print(get_all_users())
     return jsonify({'message': 'User created'}), 200
 
 
@@ -33,9 +36,13 @@ def check_user_route():
 def get_r():
     global client_public_key
     C = int(request.json['C'])
-    client_public_key = request.json['public_key']
     r = pow(C, int.from_bytes(salt, 'big'))
-    return jsonify({'R': r, "server_public_key": public_key}), 200
+    print(public_key)
+    return jsonify({'R': r, "server_public_key": public_key.decode()}), 200
+
+
+def get_users():
+    print(get_all_users())
 
 
 if __name__ == '__main__':

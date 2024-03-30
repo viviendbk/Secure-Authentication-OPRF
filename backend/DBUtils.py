@@ -12,21 +12,22 @@ load_dotenv()
 
 def generate_rsa_key_pair(public_exponent=65537, key_size=2048):
     private_key = rsa.generate_private_key(
-      public_exponent=public_exponent,
-      key_size=key_size,
+        public_exponent=public_exponent,
+        key_size=key_size,
     )
 
     public_key = private_key.public_key()
 
+    # PEM encode the private and public keys
     pem_encoded_private_key = private_key.private_bytes(
-      encoding=serialization.Encoding.PEM,
-      format=serialization.PrivateFormat.PKCS8,
-      encryption_algorithm=serialization.NoEncryption()
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
     )
 
     pem_encoded_public_key = public_key.public_bytes(
-      encoding=serialization.Encoding.PEM,
-      format=serialization.PublicFormat.SubjectPublicKeyInfo
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
 
     return pem_encoded_private_key, pem_encoded_public_key
@@ -104,4 +105,3 @@ def pem_to_int(pem_key):
     der_key = base64.b64decode(pem_key)
     key_as_int = int.from_bytes(der_key, 'big')
     return key_as_int
-
