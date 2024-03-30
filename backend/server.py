@@ -1,17 +1,15 @@
-import random
-import sys
-
-from flask import Flask, request, jsonify
-from DBUtils import create_users_table, drop_users_table, check_user, create_user, get_all_users, generate_rsa_key_pair, pem_to_int
 import os
-import dotenv
+import sys
+sys.path.append("../")
+from flask import Flask, request, jsonify
+from DBUtils import create_users_table, drop_users_table, check_user, create_user, get_all_users, generate_rsa_key_pair, \
+    pem_to_int
+from crypto_utils import p, q
 
 app = Flask(__name__)
+drop_users_table()
 create_users_table()
 salt = 0
-dotenv.load_dotenv()
-private_key, public_key = generate_rsa_key_pair()
-client_public_key = ""
 
 
 @app.route('/users', methods=['POST'])
@@ -35,18 +33,11 @@ def check_user_route():
 
 @app.route('/getR', methods=['POST'])
 def get_r():
-    sys.set_int_max_str_digits(10000000)
-    global client_public_key
-    C = int(request.json['C'])
+    C = request.json['C']
     global salt
-    salt = random.randint(1, 100)
-    r = pow(C, salt, 2 ** 2048)
-    print("R:", r)
-    return jsonify({'R': r, "server_public_key": public_key.decode()}), 200
-
-
-def get_users():
-    print(get_all_users())
+    salt = int.from_bytes(os.urandom(32), 'big')
+    R = pow(C, salt, p)
+    return jsonify({'R': R}), 200
 
 
 if __name__ == '__main__':
