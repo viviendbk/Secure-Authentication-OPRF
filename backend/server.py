@@ -6,8 +6,11 @@ from DBUtils import create_users_table, drop_users_table, check_user, create_use
     pem_to_int
 from crypto_utils import p, q
 
+
 app = Flask(__name__)
+# COMMENT THE FOLLOWING LINE ONCE YOU HAVE RUN THE SERVER FOR THE FIRST TIME
 drop_users_table()
+
 create_users_table()
 salt = 0
 
