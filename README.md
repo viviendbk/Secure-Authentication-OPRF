@@ -27,7 +27,7 @@ To run this project, you need to have Python installed on your machine.
     pip install -r requirements.txt
     ```
    
-4. Copy and paste the .env file submitted by the project members on DVL to the backend folder.
+4. Copy and paste the .env file submitted by the project members on DVL to the backend folder. Make sure that the file is named ".env" and not "env".
    
 ## Usage
 1. Start the server:
